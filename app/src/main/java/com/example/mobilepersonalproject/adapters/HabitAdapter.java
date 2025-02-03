@@ -6,11 +6,11 @@ import android.view.ViewGroup;
 import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.mobilepersonalproject.HabitTrackerActivity;
 import com.example.mobilepersonalproject.R;
 import com.example.mobilepersonalproject.models.Habit;
 import com.google.firebase.auth.FirebaseAuth;
@@ -23,9 +23,11 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.ViewHolder> 
     private List<Habit> habitList;
     private FirebaseFirestore db;
     private FirebaseUser user;
+    private HabitTrackerActivity activity;
 
-    public HabitAdapter(List<Habit> habitList) {
+    public HabitAdapter(List<Habit> habitList, HabitTrackerActivity activity) {
         this.habitList = habitList;
+        this.activity = activity;
         db = FirebaseFirestore.getInstance();
         user = FirebaseAuth.getInstance().getCurrentUser();
     }
@@ -41,11 +43,13 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.ViewHolder> 
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Habit habit = habitList.get(position);
         holder.habitName.setText(habit.getHabitName());
+        holder.habitCheckbox.setOnCheckedChangeListener(null); // Prevents unwanted triggers
         holder.habitCheckbox.setChecked(habit.isCompleted());
 
-        // ✅ Update Firestore when checkbox is clicked
+        // ✅ Update Firestore when checkbox is toggled
         holder.habitCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
             habit.setCompleted(isChecked);
+
             if (user != null) {
                 String userId = user.getUid();
                 db.collection("users").document(userId)
@@ -55,7 +59,8 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.ViewHolder> 
                         .addOnSuccessListener(queryDocumentSnapshots -> {
                             if (!queryDocumentSnapshots.isEmpty()) {
                                 queryDocumentSnapshots.getDocuments().get(0).getReference()
-                                        .update("completed", isChecked);
+                                        .update("completed", isChecked)
+                                        .addOnSuccessListener(aVoid -> activity.updateProgress());
                             }
                         });
             }
@@ -75,16 +80,13 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.ViewHolder> 
                                         .addOnSuccessListener(aVoid -> {
                                             habitList.remove(position);
                                             notifyItemRemoved(position);
-                                            Toast.makeText(v.getContext(), "Habit deleted!", Toast.LENGTH_SHORT).show();
-                                        })
-                                        .addOnFailureListener(e ->
-                                                Toast.makeText(v.getContext(), "Failed to delete habit", Toast.LENGTH_SHORT).show());
+                                            activity.updateProgress();
+                                        });
                             }
                         });
             }
         });
     }
-
 
     @Override
     public int getItemCount() {

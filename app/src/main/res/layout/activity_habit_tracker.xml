@@ -7,14 +7,25 @@
     android:orientation="vertical">
 
     <TextView
-        android:layout_width="wrap_content"
+        android:id="@+id/habit_progress_text"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
+        android:layout_marginBottom="8dp"
+        android:gravity="center"
         android:paddingTop="50dp"
-        android:text="My Habits"
+        android:text="Daily Progress: 0%"
         android:textColor="@color/black"
-        android:textSize="22sp"
+        android:textSize="18sp"
         android:textStyle="bold" />
+
+    <ProgressBar
+        android:id="@+id/habit_progress_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:progress="0"
+        android:max="100"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_marginBottom="16dp"/>
 
     <EditText
         android:id="@+id/habit_input"
