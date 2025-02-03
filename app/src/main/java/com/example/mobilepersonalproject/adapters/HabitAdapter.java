@@ -43,9 +43,25 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.ViewHolder> 
         holder.habitName.setText(habit.getHabitName());
         holder.habitCheckbox.setChecked(habit.isCompleted());
 
-        holder.habitCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> habit.setCompleted(isChecked));
+        // ✅ Update Firestore when checkbox is clicked
+        holder.habitCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            habit.setCompleted(isChecked);
+            if (user != null) {
+                String userId = user.getUid();
+                db.collection("users").document(userId)
+                        .collection("habits")
+                        .whereEqualTo("habitName", habit.getHabitName())
+                        .get()
+                        .addOnSuccessListener(queryDocumentSnapshots -> {
+                            if (!queryDocumentSnapshots.isEmpty()) {
+                                queryDocumentSnapshots.getDocuments().get(0).getReference()
+                                        .update("completed", isChecked);
+                            }
+                        });
+            }
+        });
 
-        // Delete button logic
+        // ✅ Delete habit from Firestore
         holder.deleteHabitButton.setOnClickListener(v -> {
             if (user != null) {
                 String userId = user.getUid();
@@ -68,6 +84,7 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.ViewHolder> 
             }
         });
     }
+
 
     @Override
     public int getItemCount() {
