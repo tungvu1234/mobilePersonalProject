@@ -1,8 +1,9 @@
 package com.example.mobilepersonalproject;
 
-import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.view.View;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
@@ -14,6 +15,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.applandeo.materialcalendarview.CalendarView;
+import com.applandeo.materialcalendarview.EventDay;
 import com.example.mobilepersonalproject.adapters.HabitAdapter;
 import com.example.mobilepersonalproject.models.Habit;
 import com.google.firebase.auth.FirebaseAuth;
@@ -24,9 +27,12 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class HabitTrackerActivity extends AppCompatActivity {
     private EditText habitInput;
@@ -38,8 +44,9 @@ public class HabitTrackerActivity extends AppCompatActivity {
     private List<Habit> habitList = new ArrayList<>();
     private ProgressBar habitProgressBar;
     private TextView habitProgressText;
-    private SharedPreferences sharedPreferences;
-    private static final String LAST_RESET_DATE_KEY = "last_reset_date";
+    private CalendarView calendarView;
+    private List<EventDay> events = new ArrayList<>();
+    private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,10 +58,10 @@ public class HabitTrackerActivity extends AppCompatActivity {
         habitRecyclerView = findViewById(R.id.habit_recycler_view);
         habitProgressBar = findViewById(R.id.habit_progress_bar);
         habitProgressText = findViewById(R.id.habit_progress_text);
+        calendarView = findViewById(R.id.calendar_view);
 
         db = FirebaseFirestore.getInstance();
         user = FirebaseAuth.getInstance().getCurrentUser();
-        sharedPreferences = getSharedPreferences("HabitPrefs", MODE_PRIVATE);
 
         habitRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         habitAdapter = new HabitAdapter(habitList, this);
@@ -62,8 +69,8 @@ public class HabitTrackerActivity extends AppCompatActivity {
 
         addHabitButton.setOnClickListener(view -> addHabit());
 
-        checkAndResetHabitsDaily(); // Reset habits if a new day
         loadHabits();
+        loadCalendarMarks();
     }
 
     private void addHabit() {
@@ -98,11 +105,10 @@ public class HabitTrackerActivity extends AppCompatActivity {
                             habitList.add(habit);
                         }
                         habitAdapter.notifyDataSetChanged();
-                        updateProgress(); // ✅ Ensure progress bar updates after loading data
+                        updateProgress();
                     });
         }
     }
-
 
     public void updateProgress() {
         int completedCount = 0;
@@ -112,31 +118,58 @@ public class HabitTrackerActivity extends AppCompatActivity {
         int progress = (habitList.size() > 0) ? (completedCount * 100 / habitList.size()) : 0;
         habitProgressBar.setProgress(progress);
         habitProgressText.setText("Daily Progress: " + progress + "%");
+
+        markCalendar(progress == 100 ? "full" : (progress > 0 ? "half" : "none"));
     }
 
+    private void markCalendar(String status) {
+        Calendar today = Calendar.getInstance();
 
-    private void checkAndResetHabitsDaily() {
-        String lastResetDate = sharedPreferences.getString(LAST_RESET_DATE_KEY, "");
-        String todayDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        int drawableId = status.equals("full") ? R.drawable.full_circle :
+                status.equals("half") ? R.drawable.half_circle : 0;
 
-        if (!lastResetDate.equals(todayDate)) {
-            resetAllHabits();
-            sharedPreferences.edit().putString(LAST_RESET_DATE_KEY, todayDate).apply();
+        if (drawableId != 0) {
+            Drawable drawable = getResources().getDrawable(drawableId);
+            events.add(new EventDay(today, drawable));
+            calendarView.setEvents(events);
+
+            // ✅ Store the status correctly as a Map
+            Map<String, Object> calendarEntry = new HashMap<>();
+            calendarEntry.put("status", status);
+            calendarEntry.put("date", dateFormat.format(today.getTime()));
+
+            db.collection("users").document(user.getUid()).collection("calendar")
+                    .document(dateFormat.format(today.getTime()))
+                    .set(calendarEntry)  // ✅ Firestore requires a Map<String, Object>
+                    .addOnSuccessListener(aVoid ->
+                            Log.d("Firestore", "Calendar entry updated successfully"))
+                    .addOnFailureListener(e ->
+                            Log.e("Firestore", "Failed to update calendar entry", e));
         }
     }
 
 
-    private void resetAllHabits() {
+
+    private void loadCalendarMarks() {
         if (user != null) {
-            db.collection("users").document(user.getUid()).collection("habits")
+            db.collection("users").document(user.getUid()).collection("calendar")
                     .get()
-                    .addOnSuccessListener(queryDocumentSnapshots -> {
-                        for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
-                            doc.getReference().update("completed", false);
+                    .addOnSuccessListener(querySnapshot -> {
+                        for (QueryDocumentSnapshot doc : querySnapshot) {
+                            Calendar date = Calendar.getInstance();
+                            date.setTime(new Date(doc.getId()));
+
+                            String status = doc.getString("status");
+                            int drawableId = status.equals("full") ? R.drawable.full_circle :
+                                    status.equals("half") ? R.drawable.half_circle : 0;
+
+                            if (drawableId != 0) {
+                                Drawable drawable = getResources().getDrawable(drawableId);
+                                events.add(new EventDay(date, drawable));
+                            }
                         }
-                        loadHabits(); // ✅ Reload habits and update progress
+                        calendarView.setEvents(events);
                     });
         }
     }
-
 }
