@@ -46,5 +46,6 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation ("com.google.firebase:firebase-firestore:24.0.2")
     implementation ("com.applandeo:material-calendar-view:1.9.0")
-
+    implementation ("com.google.android.gms:play-services-auth:20.7.0")
+    implementation ("com.google.android.gms:play-services-base:18.2.0")  // Core Play Services
 }

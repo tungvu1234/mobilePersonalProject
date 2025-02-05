@@ -116,14 +116,36 @@ public class HabitTrackerActivity extends AppCompatActivity {
             if (habit.isCompleted()) completedCount++;
         }
         int progress = (habitList.size() > 0) ? (completedCount * 100 / habitList.size()) : 0;
+
         habitProgressBar.setProgress(progress);
         habitProgressText.setText("Daily Progress: " + progress + "%");
 
-        markCalendar(progress == 100 ? "full" : (progress > 0 ? "half" : "none"));
+        // 🔹 Update Firestore and refresh the calendar
+        if (progress == 100) {
+            markCalendar("full");
+        } else if (progress > 0) {
+            markCalendar("half");
+        } else {
+            markCalendar("none");
+        }
+
+        // 🔹 Refresh Calendar after updating Firestore
+        loadCalendarMarks();
     }
 
+
     private void markCalendar(String status) {
+        if (user == null) {
+            Log.e("Firestore", "User is not authenticated!");
+            return;
+        }
+
         Calendar today = Calendar.getInstance();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        String todayDate = sdf.format(today.getTime()); // ✅ Ensure correct date format
+
+        // ✅ Remove old events before adding a new one
+        events.removeIf(event -> event.getCalendar().getTime().equals(today.getTime()));
 
         int drawableId = status.equals("full") ? R.drawable.full_circle :
                 status.equals("half") ? R.drawable.half_circle : 0;
@@ -131,22 +153,29 @@ public class HabitTrackerActivity extends AppCompatActivity {
         if (drawableId != 0) {
             Drawable drawable = getResources().getDrawable(drawableId);
             events.add(new EventDay(today, drawable));
-            calendarView.setEvents(events);
-
-            // ✅ Store the status correctly as a Map
-            Map<String, Object> calendarEntry = new HashMap<>();
-            calendarEntry.put("status", status);
-            calendarEntry.put("date", dateFormat.format(today.getTime()));
-
-            db.collection("users").document(user.getUid()).collection("calendar")
-                    .document(dateFormat.format(today.getTime()))
-                    .set(calendarEntry)  // ✅ Firestore requires a Map<String, Object>
-                    .addOnSuccessListener(aVoid ->
-                            Log.d("Firestore", "Calendar entry updated successfully"))
-                    .addOnFailureListener(e ->
-                            Log.e("Firestore", "Failed to update calendar entry", e));
         }
+
+        calendarView.setEvents(events);  // 🔹 Force UI Update
+
+        // ✅ Save the date in Firestore
+        Map<String, Object> calendarEntry = new HashMap<>();
+        calendarEntry.put("status", status);
+        calendarEntry.put("date", todayDate); // 🔹 Store formatted date
+
+        db.collection("users").document(user.getUid()).collection("calendar")
+                .document(todayDate)
+                .set(calendarEntry)
+                .addOnSuccessListener(aVoid -> {
+                    Log.d("Firestore", "Calendar entry updated successfully");
+                    runOnUiThread(() -> {
+                        loadCalendarMarks(); // 🔹 Force Refresh on Main UI Thread
+                    });
+                })
+                .addOnFailureListener(e -> Log.e("Firestore", "Failed to update calendar entry", e));
     }
+
+
+
 
 
 
@@ -155,20 +184,38 @@ public class HabitTrackerActivity extends AppCompatActivity {
             db.collection("users").document(user.getUid()).collection("calendar")
                     .get()
                     .addOnSuccessListener(querySnapshot -> {
+                        events.clear(); // 🔹 Clear old events before reloading
+
                         for (QueryDocumentSnapshot doc : querySnapshot) {
-                            Calendar date = Calendar.getInstance();
-                            date.setTime(new Date(doc.getId()));
+                            String dateStr = doc.getString("date");
 
-                            String status = doc.getString("status");
-                            int drawableId = status.equals("full") ? R.drawable.full_circle :
-                                    status.equals("half") ? R.drawable.half_circle : 0;
+                            try {
+                                // ✅ Convert String to Date properly
+                                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                                Date parsedDate = sdf.parse(dateStr);
 
-                            if (drawableId != 0) {
-                                Drawable drawable = getResources().getDrawable(drawableId);
-                                events.add(new EventDay(date, drawable));
+                                if (parsedDate != null) {
+                                    Calendar date = Calendar.getInstance();
+                                    date.setTime(parsedDate);
+
+                                    String status = doc.getString("status");
+                                    int drawableId = status.equals("full") ? R.drawable.full_circle :
+                                            status.equals("half") ? R.drawable.half_circle : 0;
+
+                                    if (drawableId != 0) {
+                                        Drawable drawable = getResources().getDrawable(drawableId);
+                                        events.add(new EventDay(date, drawable));
+                                    }
+                                }
+                            } catch (Exception e) {
+                                Log.e("Firestore", "Error parsing date: " + dateStr, e);
                             }
                         }
-                        calendarView.setEvents(events);
+
+                        // 🔹 Update UI on the Main Thread
+                        runOnUiThread(() -> {
+                            calendarView.setEvents(events);
+                        });
                     });
         }
     }
