@@ -1,5 +1,6 @@
 package com.example.mobilepersonalproject.adapters;
 
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,7 +11,6 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.mobilepersonalproject.HabitTrackerActivity;
 import com.example.mobilepersonalproject.R;
 import com.example.mobilepersonalproject.models.Habit;
 import com.google.firebase.auth.FirebaseAuth;
@@ -23,11 +23,17 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.ViewHolder> 
     private List<Habit> habitList;
     private FirebaseFirestore db;
     private FirebaseUser user;
-    private HabitTrackerActivity activity;
+    private Context context;
+    private OnHabitCheckedChangeListener habitCheckedChangeListener; // 🔹 Callback for real-time updates
 
-    public HabitAdapter(List<Habit> habitList, HabitTrackerActivity activity) {
+    public interface OnHabitCheckedChangeListener {
+        void onHabitCheckedChanged();
+    }
+
+    public HabitAdapter(List<Habit> habitList, Context context, OnHabitCheckedChangeListener listener) {
         this.habitList = habitList;
-        this.activity = activity;
+        this.context = context;
+        this.habitCheckedChangeListener = listener; // Assign callback
         db = FirebaseFirestore.getInstance();
         user = FirebaseAuth.getInstance().getCurrentUser();
     }
@@ -43,16 +49,14 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.ViewHolder> 
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Habit habit = habitList.get(position);
         holder.habitName.setText(habit.getHabitName());
-        holder.habitCheckbox.setOnCheckedChangeListener(null); // Prevents unwanted triggers
+        holder.habitCheckbox.setOnCheckedChangeListener(null);
         holder.habitCheckbox.setChecked(habit.isCompleted());
 
-        // ✅ Update Firestore when checkbox is toggled
         holder.habitCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
             habit.setCompleted(isChecked);
 
             if (user != null) {
-                String userId = user.getUid();
-                db.collection("users").document(userId)
+                db.collection("users").document(user.getUid())
                         .collection("habits")
                         .whereEqualTo("habitName", habit.getHabitName())
                         .get()
@@ -60,17 +64,19 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.ViewHolder> 
                             if (!queryDocumentSnapshots.isEmpty()) {
                                 queryDocumentSnapshots.getDocuments().get(0).getReference()
                                         .update("completed", isChecked)
-                                        .addOnSuccessListener(aVoid -> activity.updateProgress());
+                                        .addOnSuccessListener(aVoid -> {
+                                            if (habitCheckedChangeListener != null) {
+                                                habitCheckedChangeListener.onHabitCheckedChanged(); // 🔹 Notify fragment
+                                            }
+                                        });
                             }
                         });
             }
         });
 
-        // ✅ Delete habit from Firestore
         holder.deleteHabitButton.setOnClickListener(v -> {
             if (user != null) {
-                String userId = user.getUid();
-                db.collection("users").document(userId)
+                db.collection("users").document(user.getUid())
                         .collection("habits")
                         .whereEqualTo("habitName", habit.getHabitName())
                         .get()
@@ -80,7 +86,9 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.ViewHolder> 
                                         .addOnSuccessListener(aVoid -> {
                                             habitList.remove(position);
                                             notifyItemRemoved(position);
-                                            activity.updateProgress();
+                                            if (habitCheckedChangeListener != null) {
+                                                habitCheckedChangeListener.onHabitCheckedChanged(); // 🔹 Notify fragment on delete
+                                            }
                                         });
                             }
                         });

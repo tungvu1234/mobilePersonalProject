@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/nav_habits"
+        android:icon="@drawable/ic_habits"
+        android:title="Habits"
+        app:showAsAction="ifRoom"/>
+
+    <item
+        android:id="@+id/nav_exercise"
+        android:icon="@drawable/ic_exercise"
+        android:title="Exercise"
+        app:showAsAction="ifRoom"/>
+
+    <item
+        android:id="@+id/nav_progress"
+        android:icon="@drawable/ic_progress"
+        android:title="Progress"
+        app:showAsAction="ifRoom"/>
+
+    <item
+        android:id="@+id/nav_gamification"
+        android:icon="@drawable/ic_gamification"
+        android:title="Gamification"
+        app:showAsAction="ifRoom"/>
+
+</menu>
