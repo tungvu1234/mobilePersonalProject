@@ -45,6 +45,11 @@ public class ProgressReportFragment extends Fragment {
     }
 
     public void loadCalendarMarks() {
+        if (!isAdded() || getContext() == null) {
+            Log.e("ProgressReportFragment", "Fragment is not attached! Skipping loadCalendarMarks.");
+            return;
+        }
+
         if (user == null) {
             Log.e("Firestore", "User is not authenticated!");
             return;
@@ -53,13 +58,12 @@ public class ProgressReportFragment extends Fragment {
         db.collection("users").document(user.getUid()).collection("calendar")
                 .get()
                 .addOnSuccessListener(querySnapshot -> {
-                    events.clear(); // Clear old events before reloading
+                    events.clear(); // 🔹 Clear old events before reloading
 
                     for (QueryDocumentSnapshot doc : querySnapshot) {
                         String dateStr = doc.getString("date");
 
                         try {
-                            // Convert stored Firestore date String to Date object
                             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
                             Date parsedDate = sdf.parse(dateStr);
 
@@ -71,8 +75,8 @@ public class ProgressReportFragment extends Fragment {
                                 int drawableId = status.equals("full") ? R.drawable.full_circle :
                                         status.equals("half") ? R.drawable.half_circle : 0;
 
-                                if (drawableId != 0) {
-                                    Drawable drawable = getResources().getDrawable(drawableId);
+                                if (drawableId != 0 && isAdded()) { // ✅ Ensure fragment is attached
+                                    Drawable drawable = requireContext().getDrawable(drawableId);
                                     events.add(new EventDay(date, drawable));
                                 }
                             }
@@ -81,8 +85,12 @@ public class ProgressReportFragment extends Fragment {
                         }
                     }
 
-                    // Refresh calendar UI
-                    calendarView.setEvents(events);
+                    if (calendarView != null) {
+                        calendarView.setEvents(events); // ✅ Update the calendar UI
+                    } else {
+                        Log.e("CalendarView", "calendarView is null when updating events!");
+                    }
                 });
     }
+
 }

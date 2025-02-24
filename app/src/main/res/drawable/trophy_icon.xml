@@ -1,0 +1,30 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Trophy Cup -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M12,2C10.9,2 10,2.9 10,4V7C10,8.1 10.9,9 12,9C13.1,9 14,8.1 14,7V4C14,2.9 13.1,2 12,2z"/>
+
+    <!-- Trophy Handles -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M19,4H16V6H18V10C18,12.76 15.76,15 13,15H11C8.24,15 6,12.76 6,10V6H8V4H5C3.9,4 3,4.9 3,6V10C3,14.42 6.58,18 11,18H13C17.42,18 21,14.42 21,10V6C21,4.9 20.1,4 19,4z"/>
+
+    <!-- Trophy Base -->
+    <path
+        android:fillColor="#8B8000"
+        android:translateX="9"
+        android:translateY="18"
+        android:pathData="M0,0h6v2h-6z"/>
+
+    <!-- Bottom Stand -->
+    <path
+        android:fillColor="#8B8000"
+        android:translateX="7"
+        android:translateY="20"
+        android:pathData="M0,0h10v2h-10z"/>
+</vector>

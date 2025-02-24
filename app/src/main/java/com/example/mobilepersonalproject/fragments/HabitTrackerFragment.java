@@ -1,7 +1,15 @@
 package com.example.mobilepersonalproject.fragments;
 
+import android.Manifest;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.pm.PackageManager;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -9,15 +17,19 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import com.example.mobilepersonalproject.MainActivity;
 import com.example.mobilepersonalproject.R;
 import com.example.mobilepersonalproject.adapters.HabitAdapter;
 import com.example.mobilepersonalproject.models.Habit;
+import com.example.mobilepersonalproject.models.Trophy;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -100,6 +112,7 @@ public class HabitTrackerFragment extends Fragment implements HabitAdapter.OnHab
     @Override
     public void onHabitCheckedChanged() {
         updateProgress(); // 🔹 Update progress bar
+        checkAndAwardTrophy();
 
         if (habitUpdateListener != null) {
             habitUpdateListener.onHabitUpdated(); // Notify MainActivity to update calendar
@@ -117,8 +130,9 @@ public class HabitTrackerFragment extends Fragment implements HabitAdapter.OnHab
         int progress = (habitList.size() > 0) ? (completedCount * 100 / habitList.size()) : 0;
         String status = (progress == 100) ? "full" : (progress > 0 ? "half" : "none");
 
-        Calendar today = Calendar.getInstance();
-        String todayDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(today.getTime());
+        // ✅ Correctly format the date before storing it in Firestore
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        String todayDate = sdf.format(Calendar.getInstance().getTime());
 
         if (user != null) {
             Map<String, Object> calendarEntry = new HashMap<>();
@@ -130,12 +144,11 @@ public class HabitTrackerFragment extends Fragment implements HabitAdapter.OnHab
                     .set(calendarEntry)
                     .addOnSuccessListener(aVoid -> {
                         if (habitUpdateListener != null) {
-                            habitUpdateListener.onHabitUpdated(); // Update calendar view
+                            habitUpdateListener.onHabitUpdated(); // 🔹 Ensure calendar updates
                         }
                     });
         }
     }
-
 
     private void addHabit() {
         String habitName = habitInput.getText().toString().trim();
@@ -170,4 +183,119 @@ public class HabitTrackerFragment extends Fragment implements HabitAdapter.OnHab
                     });
         }
     }
+
+    private void awardTrophy(String name, String description, String imageUrl) {
+        if (user != null) {
+            Trophy newTrophy = new Trophy(name, description, imageUrl);
+            db.collection("users").document(user.getUid()).collection("trophies")
+                    .add(newTrophy)
+                    .addOnSuccessListener(documentReference -> {
+                        sendTrophyNotification(name);
+                        updateGamificationFragment();
+                    });
+        }
+    }
+
+    private void sendTrophyNotification(String trophyName) {
+        String channelId = "trophy_channel"; // ✅ Ensure channel ID is consistent
+
+        // ✅ Check if notification permission is granted (Only needed for Android 13+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(getActivity(),
+                        new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
+                return; // Don't send the notification if permission is not granted
+            }
+        }
+
+        // ✅ Create the notification channel (Only needed for Android 8.0+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    channelId,
+                    "Trophy Notifications",
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+            channel.setDescription("Notifications for earned trophies.");
+
+            NotificationManager notificationManager = getContext().getSystemService(NotificationManager.class);
+            if (notificationManager != null) {
+                notificationManager.createNotificationChannel(channel);
+            }
+        }
+
+        // ✅ Build the notification
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getContext(), channelId)
+                .setSmallIcon(R.drawable.trophy_icon)
+                .setContentTitle("New Trophy Unlocked!")
+                .setContentText("You earned the '" + trophyName + "' trophy!")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true);
+
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(getContext());
+        notificationManager.notify(100, builder.build()); // ✅ Now safe to call
+    }
+
+    private void updateGamificationFragment() {
+        if (getActivity() != null) {
+            GamificationFragment gamificationFragment = (GamificationFragment) getActivity()
+                    .getSupportFragmentManager().findFragmentByTag("GAMIFICATION_FRAGMENT");
+            if (gamificationFragment != null) {
+                gamificationFragment.loadTrophies(); // 🔹 Update the reward shelf
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == 1) { // 🔹 Match the request code in sendTrophyNotification()
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // 🔹 Permission granted! Send the notification now
+                sendTrophyNotification("Daily Master");
+            } else {
+                // 🔹 Permission denied. Show a message or handle it gracefully
+                Toast.makeText(getContext(), "Notification permission denied!", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void checkAndAwardTrophy() {
+        int completedCount = 0;
+        for (Habit habit : habitList) {
+            if (habit.isCompleted()) completedCount++;
+        }
+
+        // Check if all habits are completed for today
+        if (completedCount == habitList.size() && habitList.size() > 0) {
+            awardTrophy("Daily Master", "Completed all daily habits!", "https://cdn-icons-png.flaticon.com/512/616/616490.png");
+            checkStreakAchievement();
+        }
+    }
+
+    private void checkStreakAchievement() {
+        if (user == null) return;
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        Calendar yesterday = Calendar.getInstance();
+        yesterday.add(Calendar.DAY_OF_YEAR, -1);
+        String yesterdayDate = sdf.format(yesterday.getTime());
+
+        db.collection("users").document(user.getUid()).collection("calendar")
+                .document(yesterdayDate)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        String status = documentSnapshot.getString("status");
+
+                        // 🔹 If all habits were completed yesterday, award the streak trophy
+                        if ("full".equals(status)) {
+                            awardTrophy("Streak Master", "Completed all daily habits for 2 consecutive days!", "https://cdn-icons-png.flaticon.com/512/1824/1824251.png");
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> Log.e("Firestore", "Failed to check streak", e));
+    }
+
 }

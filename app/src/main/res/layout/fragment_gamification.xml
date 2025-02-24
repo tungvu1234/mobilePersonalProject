@@ -3,25 +3,24 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:background="@color/light_background">
 
     <TextView
         android:id="@+id/gamification_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Gamification"
+        android:text="Your Trophy Shelf"
         android:textSize="24sp"
         android:textStyle="bold"
         android:gravity="center"
         android:padding="10dp" />
 
-    <TextView
-        android:id="@+id/gamification_description"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/trophy_recycler_view"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="This section will show gamification rewards."
-        android:textSize="16sp"
-        android:gravity="center"
-        android:padding="10dp" />
+        android:padding="10dp"
+        android:background="@drawable/card_background"/>
 
 </LinearLayout>
