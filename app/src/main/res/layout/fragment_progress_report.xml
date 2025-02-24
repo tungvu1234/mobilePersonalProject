@@ -1,9 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:orientation="vertical">
 
     <TextView
         android:id="@+id/progress_title"
@@ -19,9 +19,18 @@
         android:id="@+id/progress_description"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="This section will display habit progress reports."
+        android:text="View your daily habit tracking progress."
         android:textSize="16sp"
         android:gravity="center"
         android:padding="10dp" />
+
+    <com.applandeo.materialcalendarview.CalendarView
+        android:id="@+id/calendar_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:headerColor="@color/primary_button"
+        app:todayLabelColor="@color/black"
+        app:selectionColor="@color/secondary_button"
+        android:layout_marginTop="10dp"/>
 
 </LinearLayout>

@@ -10,7 +10,9 @@ import com.example.mobilepersonalproject.fragments.ProgressReportFragment;
 import com.example.mobilepersonalproject.fragments.GamificationFragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements HabitTrackerFragment.OnHabitUpdateListener {
+    private ProgressReportFragment progressReportFragment;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -18,6 +20,9 @@ public class MainActivity extends AppCompatActivity {
 
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
         bottomNavigationView.setOnNavigationItemSelectedListener(navListener);
+
+        // Initialize ProgressReportFragment
+        progressReportFragment = new ProgressReportFragment();
 
         // Load default fragment
         if (savedInstanceState == null) {
@@ -27,27 +32,30 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private final BottomNavigationView.OnNavigationItemSelectedListener navListener =
-            new BottomNavigationView.OnNavigationItemSelectedListener() {
-                @Override
-                public boolean onNavigationItemSelected(@NonNull android.view.MenuItem item) {
-                    Fragment selectedFragment = null;
+            item -> {
+                Fragment selectedFragment = null;
 
-                    if (item.getItemId() == R.id.nav_habits) {
-                        selectedFragment = new HabitTrackerFragment();
-                    } else if (item.getItemId() == R.id.nav_exercise) {
-                        selectedFragment = new ExercisePlanFragment();
-                    } else if (item.getItemId() == R.id.nav_progress) {
-                        selectedFragment = new ProgressReportFragment();
-                    } else if (item.getItemId() == R.id.nav_gamification) {
-                        selectedFragment = new GamificationFragment();
-                    }
-
-                    if (selectedFragment != null) {
-                        getSupportFragmentManager().beginTransaction()
-                                .replace(R.id.fragment_container, selectedFragment).commit();
-                    }
-                    return true;
+                if (item.getItemId() == R.id.nav_habits) {
+                    selectedFragment = new HabitTrackerFragment();
+                } else if (item.getItemId() == R.id.nav_exercise) {
+                    selectedFragment = new ExercisePlanFragment();
+                } else if (item.getItemId() == R.id.nav_progress) {
+                    selectedFragment = progressReportFragment; // Use stored reference
+                } else if (item.getItemId() == R.id.nav_gamification) {
+                    selectedFragment = new GamificationFragment();
                 }
+
+                if (selectedFragment != null) {
+                    getSupportFragmentManager().beginTransaction()
+                            .replace(R.id.fragment_container, selectedFragment).commit();
+                }
+                return true;
             };
 
+    @Override
+    public void onHabitUpdated() {
+        if (progressReportFragment != null) {
+            progressReportFragment.loadCalendarMarks(); // Refresh calendar when progress changes
+        }
+    }
 }
