@@ -32,8 +32,10 @@ import com.example.mobilepersonalproject.models.Habit;
 import com.example.mobilepersonalproject.models.Trophy;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.WriteBatch;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -169,20 +171,23 @@ public class HabitTrackerFragment extends Fragment implements HabitAdapter.OnHab
         }
     }
     private void loadHabits() {
-        if (user != null) {
-            db.collection("users").document(user.getUid()).collection("habits")
-                    .get()
-                    .addOnSuccessListener(queryDocumentSnapshots -> {
-                        habitList.clear();
-                        for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
-                            Habit habit = doc.toObject(Habit.class);
-                            habitList.add(habit);
-                        }
-                        habitAdapter.notifyDataSetChanged();
-                        updateProgress();
-                    });
-        }
+        if (user == null) return;
+
+        db.collection("users").document(user.getUid()).get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                    String todayDate = sdf.format(Calendar.getInstance().getTime());
+                    String lastResetDate = documentSnapshot.getString("lastResetDate");
+
+                    if (lastResetDate == null || !lastResetDate.equals(todayDate)) {
+                        resetHabits(); // 🔹 Reset habits if it's a new day
+                    } else {
+                        fetchHabitsFromFirestore(); // 🔹 Load habits normally
+                    }
+                })
+                .addOnFailureListener(e -> Log.e("Firestore", "Failed to check last reset date", e));
     }
+
 
     private void awardTrophy(String name, String description, String imageUrl) {
         if (user != null) {
@@ -296,6 +301,68 @@ public class HabitTrackerFragment extends Fragment implements HabitAdapter.OnHab
                     }
                 })
                 .addOnFailureListener(e -> Log.e("Firestore", "Failed to check streak", e));
+    }
+
+    private void updateLastResetDate() {
+        if (user == null) return;
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        String todayDate = sdf.format(Calendar.getInstance().getTime());
+
+        DocumentReference userRef = db.collection("users").document(user.getUid());
+
+        userRef.get().addOnSuccessListener(documentSnapshot -> {
+            Map<String, Object> lastReset = new HashMap<>();
+            lastReset.put("lastResetDate", todayDate);
+
+            if (documentSnapshot.exists()) {
+                // ✅ Document exists, update last reset date
+                userRef.update(lastReset)
+                        .addOnFailureListener(e -> Log.e("Firestore", "Failed to update last reset date", e));
+            } else {
+                // ✅ Document does not exist, create it first
+                userRef.set(lastReset)
+                        .addOnFailureListener(e -> Log.e("Firestore", "Failed to create user document", e));
+            }
+        }).addOnFailureListener(e -> Log.e("Firestore", "Failed to check user document existence", e));
+    }
+
+    private void resetHabits() {
+        if (user == null) return;
+
+        db.collection("users").document(user.getUid()).collection("habits")
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    WriteBatch batch = db.batch();
+                    for (QueryDocumentSnapshot doc : querySnapshot) {
+                        DocumentReference habitRef = doc.getReference();
+                        batch.update(habitRef, "completed", false);
+                    }
+                    batch.commit()
+                            .addOnSuccessListener(aVoid -> {
+                                updateLastResetDate(); // 🔹 Update the last reset date
+                                fetchHabitsFromFirestore(); // 🔹 Refresh UI after resetting
+                            })
+                            .addOnFailureListener(e -> Log.e("Firestore", "Failed to reset habits", e));
+                });
+    }
+
+    private void fetchHabitsFromFirestore() {
+        if (user == null) return;
+
+        db.collection("users").document(user.getUid()).collection("habits")
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    habitList.clear();
+                    for (QueryDocumentSnapshot doc : querySnapshot) {
+                        Habit habit = doc.toObject(Habit.class);
+                        habitList.add(habit);
+                    }
+
+                    habitAdapter.notifyDataSetChanged(); // 🔹 Refresh UI
+                    updateProgress(); // 🔹 Update progress bar after fetching habits
+                })
+                .addOnFailureListener(e -> Log.e("Firestore", "Failed to load habits", e));
     }
 
 }
