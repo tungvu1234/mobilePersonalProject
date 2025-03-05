@@ -9,11 +9,12 @@
         android:id="@+id/exercise_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="40dp"
+        android:gravity="center"
+        android:padding="10dp"
         android:text="Exercise Plan"
         android:textSize="24sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:padding="10dp" />
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/exercise_description"

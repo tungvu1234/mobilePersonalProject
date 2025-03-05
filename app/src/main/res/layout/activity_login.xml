@@ -10,11 +10,11 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Welcome to Daily Balance"
-        android:textSize="24sp"
-        android:textStyle="bold"
+        android:layout_marginBottom="20dp"
+        android:text="Welcome to Balance Yourself"
         android:textColor="@color/black"
-        android:layout_marginBottom="20dp" />
+        android:textSize="24sp"
+        android:textStyle="bold" />
 
     <EditText
         android:id="@+id/email"
