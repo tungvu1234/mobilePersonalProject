@@ -5,35 +5,37 @@
     android:gravity="center"
     android:orientation="vertical"
     android:padding="20dp"
-    android:background="@color/light_background">
+    android:background="@drawable/login_signup_background">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp"
         android:text="Create Your Account"
+        android:textColor="@color/white"
         android:textSize="24sp"
-        android:textStyle="bold"
-        android:textColor="@color/black"
-        android:layout_marginBottom="20dp"/>
+        android:textStyle="bold" />
 
     <EditText
         android:id="@+id/email"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@drawable/rounded_border"
         android:hint="Email Address"
         android:inputType="textEmailAddress"
-        android:padding="10dp"
-        android:background="@drawable/rounded_border"/>
+        android:minHeight="48dp"
+        android:padding="10dp" />
 
     <EditText
         android:id="@+id/password"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/rounded_border"
         android:hint="Password"
         android:inputType="textPassword"
-        android:padding="10dp"
-        android:background="@drawable/rounded_border"
-        android:layout_marginTop="10dp"/>
+        android:minHeight="48dp"
+        android:padding="10dp" />
 
     <Button
         android:id="@+id/register_button"
