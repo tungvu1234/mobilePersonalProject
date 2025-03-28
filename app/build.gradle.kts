@@ -47,7 +47,10 @@ dependencies {
     implementation ("com.google.firebase:firebase-firestore:24.0.2")
     implementation ("com.applandeo:material-calendar-view:1.9.0")
     implementation ("com.google.android.gms:play-services-auth:20.7.0")
-    implementation ("com.google.android.gms:play-services-base:18.2.0")  // Core Play Services
+    implementation ("com.google.android.gms:play-services-base:18.2.0")
     implementation ("com.github.bumptech.glide:glide:4.16.0")
+    implementation ("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation ("com.squareup.okhttp3:logging-interceptor:4.9.0")
     annotationProcessor ("com.github.bumptech.glide:compiler:4.16.0")
 }
